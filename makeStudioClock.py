@@ -27,17 +27,6 @@ pcb.BuildListOfNets() #neded fo load file
 # pcb = pcbnew.GetBoard()
 
 
-def init():
-    # Fill layertable
-    for i in range(50):
-        layertable[i] = pcb.GetLayerName(i)
-        layertableRev[pcb.GetLayerName(i)] = i
-        # print("{} {}".format(i, pcb.GetLayerName(i)))
-    # Delete Old Tracks
-    for t in pcb.GetTracks():
-        pcb.Delete(t)
-    for d in pcb.GetDrawings():
-        pcb.Remove(d)
 
 
 # calc rotation angle (rad) with Position in Clock: float -> float
@@ -142,10 +131,12 @@ def addVia(position, net):
     return v
 
 
-def splitString(string):
+def split_string(string_):
+
+    # TODO replace with regex
     ref = ""
     num = ""
-    for s in string.decode("utf-8") :
+    for s in string_:
         if s.isdigit():
             num.join(s)
         else:
@@ -154,17 +145,7 @@ def splitString(string):
 
 
 def getParentRef(pad):
-    return splitString(pad.GetParent().GetReference().encode("utf-8"))
-
-
-def findModules():
-    modules = {}
-    for mod in pcb.GetModules():
-        referenceString = mod.GetReference().encode("utf-8")
-        print("Found Module: %s" % (referenceString))
-        modules.update({splitString(referenceString): mod})
-    # Order The Dictionary
-    return collections.OrderedDict(sorted(modules.items(), key=lambda t: t[0]))
+    return split_string(pad.GetParent().GetReference().encode("utf-8"))
 
 
 def findNets(modules):
@@ -173,9 +154,9 @@ def findNets(modules):
         for pad in mod.Pads():
             netname = pad.GetShortNetname().encode("utf-8")
             # print "Found Net:", netname
-            if splitString(netname) not in nets.keys():
-                nets.update({splitString(netname): []})
-            nets.get(splitString(netname)).append(pad)
+            if split_string(netname) not in nets.keys():
+                nets.update({split_string(netname): []})
+            nets.get(split_string(netname)).append(pad)
     # Order The Dictionary
     nets = collections.OrderedDict(sorted(nets.items(), key=lambda t: t[0]))
     for code, num in nets.keys():
@@ -241,14 +222,15 @@ def getAnodeNets(nets_dict):
 
 def setPositionSecondRing(modulesSeconds, radiusSeconds):
     for key, value in modulesSeconds.items():
-        value.SetOrientation((calcDegAngleFromClockPosition(key[1] - 1) - 90) * 10)
+        _, i = regex_split_annotation(key)
+        value.SetOrientation((calcDegAngleFromClockPosition(i - 1) - 90) * 10)
         value.SetPosition(
-            calcXYLocationFromClockPositionWxPoint(radiusSeconds, key[1] - 1)
+            calcXYLocationFromClockPositionWxPoint(radiusSeconds, i - 1)
         )
         print(
             "Placed: Second %s at %s with rot %s"
             % (
-                key[0] + str(key[1]),
+                key,
                 str(value.GetPosition()),
                 str(value.GetOrientation()),
             )
@@ -257,16 +239,17 @@ def setPositionSecondRing(modulesSeconds, radiusSeconds):
 
 def setPositionHourRing(modulesHours, radiusHours):
     for key, value in modulesHours.items():
+        _, i = regex_split_annotation(key)
         value.SetOrientation(
-            (calcDegAngleFromClockPosition((key[1] - 61) * 5) - 90) * 10
+            (calcDegAngleFromClockPosition((i - 61) * 5) - 90) * 10
         )
         value.SetPosition(
-            calcXYLocationFromClockPositionWxPoint(radiusHours, (key[1] - 61) * 5)
+            calcXYLocationFromClockPositionWxPoint(radiusHours, (i - 61) * 5)
         )
         print(
             "Placed: Hour %s at %s with rot %s"
             % (
-                key[0] + str(key[1]),
+                key,
                 str(value.GetPosition()),
                 str(value.GetOrientation()),
             )
@@ -275,32 +258,33 @@ def setPositionHourRing(modulesHours, radiusHours):
 
 def setPositionDigits(modulesDigits, digitSpace, digitWidth, digitHigth, revers=True):
     for key, value in modulesDigits.items():
+        _, i = regex_split_annotation(key)
         value.SetPosition(
-            calcDigLocationFromPosition(key[1] - 1, digitSpace, digitWidth, digitHigth)
+            calcDigLocationFromPosition(i - 1, digitSpace, digitWidth, digitHigth)
         )
         if revers:
-            value.SetOrientation(1800)
-        print("Placed: Digit %d at %s" % (key[1], str(value.GetPosition())))
+            value.SetOrientation(2700)
+        print("Placed: Digit %d at %s" % (i, str(value.GetPosition())))
 
 
 def setSeparationModules(modulesSep, digitHigth):
-    tmp = modulesSep.items()
-    tmp[0][1].SetPosition(pcbnew.wxPointMM(0, -digitHigth * 0.4))
-    tmp[0][1].SetOrientation(2700)
-    print("Placed: Seperator %d at %s" % (tmp[0][0][1], str(tmp[0][1].GetPosition())))
-    tmp[1][1].SetPosition(pcbnew.wxPointMM(0, digitHigth * 0.4))
-    tmp[1][1].SetOrientation(2700)
-    print("Placed: Seperator %d at %s" % (tmp[1][0][1], str(tmp[1][1].GetPosition())))
+    for key, module in modulesSep.items():
+        _, i = regex_split_annotation(key)  # TODO fix one must be plus
+        sign = 1 if key=="D73" else -1
+        module.SetPosition(pcbnew.wxPointMM(0, sign * digitHigth * 0.4))
+        module.SetOrientation(2700)
+        print("Placed: Seperator %s at %s" % (key, str(module.GetPosition())))
 
 
 def setConnectorModules(modulesCon, digitHigth):
-    tmp = modulesCon.items()
-    tmp[0][1].SetPosition(pcbnew.wxPointMM(0, -digitHigth * 1.5))
-    tmp[0][1].SetOrientation(2700)
-    print("Placed: Connector %d at %s" % (tmp[0][0][1], str(tmp[0][1].GetPosition())))
-    tmp[1][1].SetPosition(pcbnew.wxPointMM(0, digitHigth * 1.5))
-    tmp[1][1].SetOrientation(2700)
-    print("Placed: Connector %d at %s" % (tmp[1][0][1], str(tmp[1][1].GetPosition())))
+    for key, module in modulesCon.items():
+        _, i = regex_split_annotation(key)
+        sign = -1 if key=="J1" else 1
+        module.SetPosition(pcbnew.wxPointMM(0, sign * digitHigth * 1.5))
+        module.SetOrientation(2700)
+        #module.Se # TODO change front to back side
+        print("Placed: Connector %s at %s" % (key, str(module.GetPosition())))
+
 
 
 def setDimension(length):
@@ -363,25 +347,24 @@ def getRingIntersectionByPosition(eq1radiusPolygon, position):
     )  # (position-30)/math.fabs(position-30))
 
 
-def setDigitsConections(modules):
-    modulesDigits = getDigitModules(modules)
-    modulesSeperationLeds = getSeparationModules(modules)
+def setDigitsConections(modulesDigits, modulesSeperationLeds):
+
     print(
         "Connecting Digits %s and Separatrion LEDs %s with Nets"
         % (
             str(map(lambda x: x.GetReference().encode("utf8"), modulesDigits.values())),
             str(
-                map(
+                list(map(  # TODO do this as list comprehension
                     lambda x: x.GetReference().encode("utf8"),
                     modulesSeperationLeds.values(),
-                )
+                ))
             ),
         )
     )
     padsLists = [None] * (4)
-    for i in range(4):
+    for i, key in enumerate(modulesDigits):
         padsLists[i] = [None] * 10
-        for pad in modulesDigits[("U", (i + 1))].Pads():
+        for pad in modulesDigits[key].Pads():
             padsLists[i][int(pad.GetPadName()) - 1] = pad
         padsLists[i].pop(2)
         padsLists[i].pop(6)
@@ -415,7 +398,7 @@ def setDigitsConections(modules):
             addVia(t.GetEnd(), padsLists[0][i].GetNetCode())
         m = listLeftVias[i][1] / outerLocation
         r = radiusFromNetNumber(
-            splitString(padsLists[0][i].GetNetname().encode("utf-8"))[1]
+            regex_split_annotation(padsLists[0][i].GetNetname())[1]
         )
         t2 = addTrack(
             t.GetEnd(),
@@ -441,7 +424,7 @@ def setDigitsConections(modules):
             addVia(t.GetEnd(), padsLists[2][i].GetNetCode())
         m = listRigthVias[i][1] / -outerLocation
         r = radiusFromNetNumber(
-            splitString(padsLists[2][i].GetNetname().encode("utf-8"))[1]
+            regex_split_annotation(padsLists[2][i].GetNetname())[1]
         )
         t2 = addTrack(
             t.GetEnd(),
@@ -496,7 +479,7 @@ def setDigitsConections(modules):
                 padsLists[2][i - 1].GetNetCode(),
                 layertableRev.get("F.Cu"),
             )
-            conPos = list(modules[("J", 1)].Pads())[15].GetPosition()
+            conPos = list(modules["J1"].Pads())[15].GetPosition()
             t6 = addTrack(
                 conPos,
                 pcbnew.wxPoint(conPos[0], listRigthVias[i - 1][1]),
@@ -509,13 +492,14 @@ def setDigitsConections(modules):
 
 def setCathodeTraks(netsCathode, maxRadius):
     for key, value in netsCathode.items():
-        if key == ("k", 15):
+        prefix, num = regex_split_annotation(key)
+        if key == "k15":
             continue
-        r = radiusFromNetNumber(key[1])
+        r = radiusFromNetNumber(num)
         print("Adding Net:", str(key), "with radius", str(r))
         addTrackRing(r, value[0].GetNetCode(), layertableRev.get("B.Cu"))
         for pad in value:
-            moduleRef = splitString(pad.GetParent().GetReference().encode("utf-8"))
+            moduleRef = regex_split_annotation(pad.GetParent().GetReference())
             if moduleRef[0] == "D" and moduleRef[1] <= 60:
                 cornerLocation = calcXYLocationFromClockPositionWxPoint(
                     r, moduleRef[1] - 1
@@ -547,7 +531,7 @@ def setCathodeTraks(netsCathode, maxRadius):
                 t4 = addTrack(
                     t3.GetEnd(),
                     getRingIntersectionByPosition(
-                        radiusFromNetNumber(key[1]), pos + 2.5
+                        radiusFromNetNumber(num), pos + 2.5
                     ),
                     pad.GetNetCode(),
                     layertableRev.get("F.Cu"),
@@ -615,12 +599,13 @@ def setAnodeTracks(netsAnode):
     for key, value in netsAnode.items():
         print("Adding Net:", str(key))
         print(
-            map(
+            list(map(
                 lambda x: (x.GetParent().GetReference().encode("utf8"), x.GetPadName()),
                 value,
             )
-        )
-        if key[1] <= 3:
+        ))
+        prefix, num = regex_split_annotation(key)
+        if num <= 3:
             conPadPos = None
             ringPos = None
             conPadPos = value[15].GetPosition()
@@ -637,11 +622,11 @@ def setAnodeTracks(netsAnode):
                     value[i].GetNetCode(),
                     layertableRev.get("F.Cu"),
                 )
-            if key[1] == 1:
+            if num == 1:
                 ringPos = getRingIntersectionByPosition(radius, 28.5)
-            if key[1] == 2:
+            if num == 2:
                 ringPos = getRingIntersectionByPosition(radius, 31.5)
-            if key[1] == 0:
+            if num == 0:
                 t1 = addTrack(
                     value[14].GetPosition(),
                     getRingIntersectionByPosition(radius, 14.5),
@@ -666,7 +651,7 @@ def setAnodeTracks(netsAnode):
                 )
                 v2 = addVia(t4.GetEnd(), value[0].GetNetCode())
                 ringPos = v2.GetPosition()
-            if key[1] == 3:
+            if num == 3:
                 # t1 Not Needed as Track already there
                 v1 = addVia(
                     getRingIntersectionByPosition(radius, 45.5), value[0].GetNetCode()
@@ -689,7 +674,7 @@ def setAnodeTracks(netsAnode):
                 v2 = addVia(t4.GetEnd(), value[0].GetNetCode())
                 ringPos = v2.GetPosition()
             addTrackWithIntersection(ringPos, conPadPos, value[0].GetNetCode())
-        elif key[1] == 4:
+        elif num == 4:
             radius = math.sqrt(
                 (
                     math.pow(value[0].GetPosition()[0], 2)
@@ -715,7 +700,7 @@ def setAnodeTracks(netsAnode):
                     value[0].GetNetCode(),
                 )
             # addTrack(getRingIntersectionByPosition(radius, 29.5), pcbnew.wxPoint(0,0), value[0].GetNetCode(), layertableRev.get("F.Cu"))
-        elif key[1] in [50, 51, 60, 61]:  # TODO: Sort Values?
+        elif num in [50, 51, 60, 61]:  # TODO: Sort Values?
             addTrack(
                 value[2].GetPosition(),
                 value[1].GetPosition(),
@@ -734,7 +719,7 @@ def setAnodeTracks(netsAnode):
                 value[0].GetNetCode(),
                 layertableRev.get("B.Cu"),
             )
-        elif key[1] in [11, 21]:
+        elif num in [11, 21]:
             t1 = addTrack(
                 value[0].GetPosition(),
                 pcbnew.wxPoint(value[1].GetPosition()[0], value[0].GetPosition()[1]),
@@ -749,22 +734,81 @@ def setAnodeTracks(netsAnode):
                 layertableRev.get("B.Cu"),
             )
 
+import re
+import collections
+
+
+def regex_split_annotation(str_):
+    a, i = re.match(r"([/A-Za-z]*)(\d*)", str_).groups()
+    return a, int(i)
+
 
 def main():
-    Modules = findModules()
-    Nets = findNets(Modules)
-    setPositionSecondRing(getSecondModules(Modules), Radius)
-    setPositionHourRing(getHourModules(Modules), Radius * 1.1)
-    setPositionDigits(getDigitModules(Modules), 3, 9.8, 10)
-    setSeparationModules(getSeparationModules(Modules), 10)
-    setConnectorModules(getConnectorModules(Modules), 10)
-    setDimension(100)
-    setDigitsConections(Modules)
-    setCathodeTraks(getCathodeNets(Nets), Radius)
-    setAnodeTracks(getAnodeNets(Nets))
+
+    # modules = {mod.GetReference(): mod for mod in sorted(pcb.GetModules())}
+    # nets = collections.defaultdict(list)
+    # for mod in modules.values():
+    #     for pad in mod.Pads():
+    #         nets[pad.GetShortNetname()].append(pad)
+    #
+    # modules_seconds = {k: modules[k] for k in ["D"+str(i) for i in range(1, 61)]}
+    # modules_hours = {k: modules[k] for k in ["D"+str(i) for i in range(61, 72 + 1)]}
+    #
+    # setPositionSecondRing(modules_seconds, Radius)
+    # setPositionHourRing(modules_hours, Radius * 1.1)
+    # setPositionDigits(getDigitModules(modules), 3, 9.8, 10)
+    # setSeparationModules(getSeparationModules(modules), 10)
+    # setConnectorModules(getConnectorModules(modules), 10)
+    # setDimension(100)
+    # setDigitsConections(modules)
+    # setCathodeTraks(getCathodeNets(Nets), Radius)
+    # setAnodeTracks(getAnodeNets(Nets))
+
     return 0
 
-
 if __name__ == "__main__":
-    init()
-    main()
+
+    # note assumes dict are ordered, which they are in python3.9
+
+    # find layer names
+    for i in range(51):
+        print(i)
+        layertable[i] = pcb.GetLayerName(i)
+        layertableRev[pcb.GetLayerName(i)] = i
+        # print("{} {}".format(i, pcb.GetLayerName(i)))
+    # Delete Old Tracks
+    print(f"deleting {len(list(pcb.GetTracks()))} tracks")
+    for t in pcb.GetTracks():
+        pcb.Delete(t)
+    print(f"deleting {len(list(pcb.GetDrawings()))} drawings")
+    for d in pcb.GetDrawings():
+        pcb.Remove(d)
+
+    # get and sort modules
+    modules = {mod.GetReference(): mod for mod in sorted(pcb.GetModules())}
+    modules_seconds = {k: modules[k] for k in ["D" + str(i) for i in range(1, 60 + 1)]}
+    modules_hours = {k: modules[k] for k in
+                     ["D" + str(i) for i in range(61, 72 + 1)]}
+    modules_digit = {k: modules[k] for k in ["U" + str(i) for i in range(1, 4 + 1)]}
+    modules_seperation = {k: modules[k] for k in ["D" + str(i) for i in [73, 74]]}
+    modules_connector = {k: modules[k] for k in ["J" + str(i) for i in [1, 2]]}
+
+    # get and sort nets
+    nets = collections.defaultdict(list)
+    for mod in modules.values():
+        for pad in mod.Pads():
+            nets[pad.GetShortNetname()].append(pad)
+    nets_kathode = {k: v for k, v in nets.items() if k.startswith("k")}
+    nets_anode = {k: v for k, v in nets.items() if k.startswith("a")}
+
+    setPositionSecondRing(modules_seconds, Radius)
+    setPositionHourRing(modules_hours, Radius * 1.1)
+    setPositionDigits(modules_digit, 3, 9.8, 10)
+    setSeparationModules(modules_seperation, 10)
+    setConnectorModules(modules_connector, 10)
+    setDimension(100)
+    setDigitsConections(modules_digit, modules_seperation)
+    setCathodeTraks(nets_kathode, Radius)
+    setAnodeTracks(nets_anode)
+
+    pcb.Save('autogen.kicad_pcb')
