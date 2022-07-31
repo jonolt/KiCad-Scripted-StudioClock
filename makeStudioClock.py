@@ -8,6 +8,7 @@ import collections
 import math
 import re
 
+import numpy as np
 import pcbnew
 
 Modules = {}
@@ -69,13 +70,25 @@ def calc_dig_location_from_position(digit_position, digit_space, digit_width):
 
 
 def radius_from_net_number(number):
+    if number < 15:
+        f = 16 - number  # range(15 + 1, 0, -1)[number]
+    else:
+        f = 17
     return (
-        Radius - 1.2 - (range(15 + 1, 0, -1)[number] * 0.75)
+        Radius - 1.2 - (16 - number) * 0.75
     )  # this can be replaced by a more advanced equation
 
 
 # add a track and add it: wxPoint, wxPoint, int, int -> Track
 def add_track(start_location, stop_location, net_code, layer):
+    """
+
+    :param start_location:
+    :param stop_location:
+    :param net_code:
+    :param layer:
+    :return:
+    """
     t = pcbnew.TRACK(pcb)
     pcb.Add(t)
     t.SetStart(start_location)
@@ -89,24 +102,61 @@ def add_track(start_location, stop_location, net_code, layer):
 # add an arc of tracks with the Position Indices of the SecondsLeds:
 # float, int, int, int, int -> Track
 def add_track_arc(radius, start_ring_position, stop_ring_position, net_code, layer):
-    t = None
+    """rig position in parts of 60 part
+
+    Note: not natural number position will start/end on the exact circle
+
+    :param radius:
+    :param start_ring_position:
+    :param stop_ring_position:
+    :param net_code:
+    :param layer:
+    :return:
+    """
+    t_start = None
+    t_stop = None
+
+    start_frac, _start_int = np.modf(start_ring_position)
+    stop_frac, _stop_int = np.modf(stop_ring_position)
     if stop_ring_position > start_ring_position:
-        for i in range(start_ring_position, stop_ring_position):
-            t = add_track(
-                calc_xy_location_from_clock_position_WxPoint(radius, i),
-                calc_xy_location_from_clock_position_WxPoint(radius, i + 1),
+        if start_frac:
+            _start_int += 1
+        for clock_pos in np.arange(_start_int, _stop_int):
+            t_stop = add_track(
+                calc_xy_location_from_clock_position_WxPoint(radius, clock_pos),
+                calc_xy_location_from_clock_position_WxPoint(radius, clock_pos + 1),
                 net_code,
                 layer,
             )
+            if t_start is None:
+                t_start = t_stop
     else:
-        for i in range(start_ring_position, stop_ring_position, -1):
-            t = add_track(
-                calc_xy_location_from_clock_position_WxPoint(radius, i),
-                calc_xy_location_from_clock_position_WxPoint(radius, i - 1),
+        if stop_frac:
+            _stop_int -= 1
+        for clock_pos in np.arange(_start_int, _stop_int, -1):
+            t_stop = add_track(
+                calc_xy_location_from_clock_position_WxPoint(radius, clock_pos),
+                calc_xy_location_from_clock_position_WxPoint(radius, clock_pos - 1),
                 net_code,
                 layer,
             )
-    return t
+            if t_start is None:
+                t_start = t_stop
+    if start_frac:
+        t_start = add_track(
+            get_ring_intersection_by_position(radius, start_ring_position),
+            t_start.GetStart(),
+            net_code,
+            layer,
+        )
+    if stop_frac:
+        t_stop = add_track(
+            t_stop.GetEnd(),
+            get_ring_intersection_by_position(radius, stop_ring_position),
+            net_code,
+            layer,
+        )
+    return t_start, t_stop
 
 
 # add a full Track ring with the desired Radius: float, int, int
@@ -127,27 +177,47 @@ def add_via(position, net):
     return v
 
 
-def u_connect(location1, location2, offset, net_code):
-    location_a = pcbnew.wxPointMM(
-        location1[0] / 1000000.0, location1[1] / 1000000.0 + offset
+def digit_u_connect(pad_a, pad_b, distance):
+    """connect two pads with a U shaped track via combination.
+
+    The horizontal lines are on the bottom and the vertical lines are on the top layer.
+
+    :param pad_a: one pad to connect
+    :param pad_b: other pad to connect
+    :param distance: distance of the horizontal line to the pad
+    :return: via further away from the center
+    """
+    net_code = pad_a.GetNetCode()
+    assert net_code == pad_b.GetNetCode()  # simple consistency check
+    pad_a_loc = pad_a.GetPosition()
+    pad_b_loc = pad_b.GetPosition()
+    via_a_loc = pcbnew.wxPointMM(
+        pad_a_loc[0] / 1000000.0, pad_a_loc[1] / 1000000.0 + distance
     )
-    location_b = pcbnew.wxPointMM(
-        location2[0] / 1000000.0, location2[1] / 1000000.0 + offset
+    via_b_loc = pcbnew.wxPointMM(
+        pad_b_loc[0] / 1000000.0, pad_b_loc[1] / 1000000.0 + distance
     )
-    add_track(location1, location_a, net_code, layer_table_rev.get("F.Cu"))
-    add_via(location_a, net_code)
-    add_track(location_a, location_b, net_code, layer_table_rev.get("B.Cu"))
-    add_via(location_b, net_code)
-    add_track(location_b, location2, net_code, layer_table_rev.get("F.Cu"))
-    if math.fabs(location_a[0]) <= math.fabs(location_b[0]):
-        return location_b
+    add_track(pad_a_loc, via_a_loc, net_code, layer_table_rev.get("F.Cu"))
+    via_a = add_via(via_a_loc, net_code)
+    add_track(via_a_loc, via_b_loc, net_code, layer_table_rev.get("B.Cu"))
+    via_b = add_via(via_b_loc, net_code)
+    add_track(via_b_loc, pad_b_loc, net_code, layer_table_rev.get("F.Cu"))
+    if math.fabs(via_a_loc[0]) <= math.fabs(via_b_loc[0]):
+        return via_b
     else:
-        return location_a
+        return via_a
 
 
 # Input: eq1radiusPolygon: Equation1, radius of the circle represented by the Polygon
 # 		eq2slope: Equation2, Slope of the beam intersecting the circle
 def get_ring_intersection(eq_1_radius_polygon, eq_2_slope, left_neg_1_right_1):
+    """
+
+    :param eq_1_radius_polygon:
+    :param eq_2_slope:
+    :param left_neg_1_right_1:
+    :return:
+    """
     m = eq_2_slope
     r = eq_1_radius_polygon
     alpha = math.pi / 60
@@ -160,6 +230,12 @@ def get_ring_intersection(eq_1_radius_polygon, eq_2_slope, left_neg_1_right_1):
 
 
 def get_ring_intersection_by_position(eq_1_radius_polygon, position):
+    """
+
+    :param eq_1_radius_polygon:
+    :param position:
+    :return:
+    """
     m = math.atan(position * math.pi / 30 - math.pi / 2)
     return get_ring_intersection(
         eq_1_radius_polygon, m, 1
@@ -190,9 +266,10 @@ if __name__ == "__main__":
     radius_hours = Radius * 1.1
 
     digit_space = 3
-    digit_width = 9.8  # only change when digit footprint changes
-    digit_high = 10  # only change when digit footprint changes
-    digit_orientation = 2700  # only change when digit footprint changes
+    # only change when digit footprint changes
+    digit_width = 10
+    digit_high = 10
+    digit_orientation = 2700
 
     # note assumes dict are ordered, which they are in python3.9
 
@@ -321,138 +398,120 @@ if __name__ == "__main__":
         f"and Separation LEDs {[x.GetReference() for x in modules_separation.values()]}"
         f" with Nets"
     )
-    pads_lists = [list()] * 4
+    net_norm_distance_dict = dict(
+        k0=-3,
+        k1=3,
+        k2=-4,
+        k3=4,
+        k4=-5,
+        k5=5,
+        k6=-6,
+        k7=6,
+        k8=-3,
+        k9=-4,
+        k10=4,
+        k11=-5,
+        k12=5,
+        k13=-6,
+        k14=6,
+        k15=3,
+    )
+    pads_dict = collections.defaultdict(dict)
     for i, key in enumerate(modules_digit):
-        pads_lists[i] = [None] * 10
         for pad in modules_digit[key].Pads():
-            pads_lists[i][int(pad.GetPadName()) - 1] = pad
-        pads_lists[i].pop(2)
-        pads_lists[i].pop(6)
+            pads_dict[i][int(pad.GetPadName())] = pad
+        pads_dict[i].pop(3)
+        pads_dict[i].pop(8)
     outer_location = 0
-    list_left_vias = [list()] * 8
-    list_right_vias = [list()] * 8
-    for i in range(8):
-        list_left_vias[i] = u_connect(
-            pads_lists[0][i].GetPosition(),
-            pads_lists[1][i].GetPosition(),
-            [6, 5, 4, 3, -3, -4, -5, -6][i] * 1.4,
-            pads_lists[0][i].GetNetCode(),
-        )
-        list_right_vias[i] = u_connect(
-            pads_lists[2][i].GetPosition(),
-            pads_lists[3][i].GetPosition(),
-            [3, 4, 5, 6, -6, -5, -4, -3][i] * 1.4,
-            pads_lists[2][i].GetNetCode(),
-        )
-        if list_left_vias[i][0] < outer_location:
-            outer_location = list_left_vias[i][0]
-    # Left Side
-    for i in range(8):
-        t = add_track(
-            list_left_vias[i],
-            pcbnew.wxPoint(outer_location, list_left_vias[i][1]),
-            pads_lists[0][i].GetNetCode(),
-            layer_table_rev.get("B.Cu"),
-        )
-        if i not in [5 - 1 - 1, 6 - 1 - 1]:
-            add_via(t.GetEnd(), pads_lists[0][i].GetNetCode())
-        m = list_left_vias[i][1] / outer_location
-        r = radius_from_net_number(
-            regex_split_annotation(pads_lists[0][i].GetNetname())[1]
-        )
-        t2 = add_track(
-            t.GetEnd(),
-            get_ring_intersection(r, m, -1),
-            pads_lists[0][i].GetNetCode(),
-            layer_table_rev.get("F.Cu"),
-        )
-        if i == 6 - 1 - 1:
-            t2.SetLayer(layer_table_rev.get("B.Cu"))
-            continue
-        add_via(t2.GetEnd(), pads_lists[0][i].GetNetCode())
-    # Right Side
-    for i in range(8):
-        if i == 1 - 1:
-            continue
-        t = add_track(
-            list_right_vias[i],
-            pcbnew.wxPoint(-outer_location, list_right_vias[i][1]),
-            pads_lists[2][i].GetNetCode(),
-            layer_table_rev.get("B.Cu"),
-        )
-        if i not in [1 - 1, 10 - 1 - 1]:
-            add_via(t.GetEnd(), pads_lists[2][i].GetNetCode())
-        m = list_right_vias[i][1] / -outer_location
-        r = radius_from_net_number(
-            regex_split_annotation(pads_lists[2][i].GetNetname())[1]
-        )
-        t2 = add_track(
-            t.GetEnd(),
-            get_ring_intersection(r, m, 1),
-            pads_lists[2][i].GetNetCode(),
-            layer_table_rev.get("F.Cu"),
-        )
-        if i == 1:
-            led_pads = []
-            led_modules_keys = modules_separation.keys()
-            for key in led_modules_keys:
-                for pad in modules_separation[key].Pads():
-                    if pad.GetNetCode() == pads_lists[2][i - 1].GetNetCode():
-                        led_pads.append(pad)
-            t3 = add_track(
-                pcbnew.wxPoint(
-                    pads_lists[2][0].GetPosition()[0], list_right_vias[i - 1][1]
-                ),
-                pcbnew.wxPoint(led_pads[0].GetPosition()[0], list_right_vias[i - 1][1]),
-                pads_lists[2][i - 1].GetNetCode(),
-                layer_table_rev.get("B.Cu"),
-            )
-            t4 = add_track(
-                t3.GetEnd(),
-                pcbnew.wxPoint(
-                    led_pads[1].GetPosition()[0], led_pads[1].GetPosition()[1] - 2000000
-                ),
-                pads_lists[2][i - 1].GetNetCode(),
-                layer_table_rev.get("B.Cu"),
-            )
-            add_via(t4.GetEnd(), pads_lists[2][i - 1].GetNetCode())
-            add_track(
-                t4.GetEnd(),
-                led_pads[1].GetPosition(),
-                pads_lists[2][i - 1].GetNetCode(),
-                layer_table_rev.get("F.Cu"),
-            )
-            v1 = add_via(
-                pcbnew.wxPoint(t3.GetEnd()[0] + 1500000, t3.GetEnd()[1]),
-                pads_lists[2][i - 1].GetNetCode(),
-            )
-            t5 = add_track(
-                v1.GetPosition(),
-                t3.GetEnd(),
-                pads_lists[2][i - 1].GetNetCode(),
-                layer_table_rev.get("F.Cu"),
-            )
-            add_track(
-                t5.GetEnd(),
-                led_pads[0].GetPosition(),
-                pads_lists[2][i - 1].GetNetCode(),
-                layer_table_rev.get("F.Cu"),
-            )
-            con_pos = list(modules["J1"].Pads())[15].GetPosition()
-            add_track(
-                con_pos,
-                pcbnew.wxPoint(con_pos[0], list_right_vias[i - 1][1]),
-                pads_lists[2][i - 1].GetNetCode(),
-                layer_table_rev.get("B.Cu"),
-            )
-        else:
-            add_via(t2.GetEnd(), pads_lists[0][i].GetNetCode())
 
-    # draw the cathode tracks of the digit  (iterating over all nets)
+    net_digit_via_dict = dict()
+    for i in pads_dict[0].keys():
+        net_short_name = pads_dict[0][i].GetNet().GetShortNetname()
+        net_digit_via_dict[net_short_name] = digit_u_connect(
+            pads_dict[0][i],
+            pads_dict[1][i],
+            net_norm_distance_dict[net_short_name] * 1.4,
+        )
+        net_short_name = pads_dict[2][i].GetNet().GetShortNetname()
+        net_digit_via_dict[net_short_name] = digit_u_connect(
+            pads_dict[2][i],
+            pads_dict[3][i],
+            net_norm_distance_dict[net_short_name] * 1.4,
+        )
+
+    outer_location = max(v.GetPosition().x for v in net_digit_via_dict.values())
+    for net_name, via in net_digit_via_dict.items():
+        net_side = np.sign(via.GetPosition().x)
+        if abs(via.GetPosition().x) < outer_location:
+            t = add_track(
+                via.GetPosition(),
+                pcbnew.wxPoint(
+                    int(outer_location * net_side),
+                    via.GetPosition().y,
+                ),
+                via.GetNetCode(),
+                layer_table_rev.get("B.Cu"),
+            )
+            via = add_via(t.GetEnd(), t.GetNetCode())
+            net_digit_via_dict[net_name] = via
+        num = regex_split_annotation(net_name)[1]
+        if net_name == "k15":
+            num = -1
+        r = radius_from_net_number(num)
+        m = via.GetPosition().y / outer_location * net_side
+        t = add_track(
+            via.GetPosition(),
+            get_ring_intersection(r, m, int(np.sign(via.GetPosition().x))),
+            via.GetNetCode(),
+            layer_table_rev.get("F.Cu"),
+        )
+        add_via(t.GetEnd(), t.GetNetCode())
+
+    # draw the cathode tracks connecting the separation leds to k15
+    k15_vias = [
+        track
+        for track in pcb.GetTracks()
+        if isinstance(track, pcbnew.VIA) and track.GetNet().GetShortNetname() == "k15"
+    ]
+    k15_via = (
+        k15_vias[0]
+        if k15_vias[0].GetPosition().x < k15_vias[1].GetPosition().x
+        else k15_vias[1]
+    )
+    k15_led_pads = [
+        pad
+        for pad in pcb.GetPads()
+        if pad.GetNet().GetShortNetname() == "k15"
+        and pad.GetParent().GetReference().startswith("D")
+    ]
+    t = add_track(
+        k15_via.GetPosition(),
+        pcbnew.wxPoint(1270000, k15_via.GetPosition().y),
+        k15_via.GetNetCode(),
+        layer_table_rev.get("B.Cu"),
+    )
+    t = add_track(
+        t.GetEnd(),
+        pcbnew.wxPoint(
+            t.GetEnd().x, max([pad.GetPosition().y for pad in k15_led_pads])
+        ),
+        t.GetNetCode(),
+        t.GetLayer(),
+    )
+    for pad_ in k15_led_pads:
+        v = add_via(pcbnew.wxPoint(t.GetEnd().x, pad_.GetPosition().y), t.GetNetCode())
+        add_track(
+            pad_.GetPosition(),
+            v.GetPosition(),
+            t.GetNetCode(),
+            layer_table_rev.get("F.Cu"),
+        )
+
+    # draw the cathode tracks of ring leds (iterating over all nets)
     for key, value in nets_cathode.items():
         prefix, num = regex_split_annotation(key)
         if key == "k15":
-            continue
+            num = -1
         r = radius_from_net_number(num)
         print("Adding Net:", str(key), "with radius", str(r))
         add_track_ring(r, value[0].GetNetCode(), layer_table_rev.get("B.Cu"))
@@ -479,7 +538,7 @@ if __name__ == "__main__":
                 pos = module_ref[1] % 61 * 5
                 t1 = add_track_arc(
                     radius, pos, pos + 2, pad.GetNetCode(), layer_table_rev.get("F.Cu")
-                )
+                )[1]
                 t3 = add_track(
                     get_ring_intersection_by_position(radius, pos + 2.5),
                     get_ring_intersection_by_position(radius - 4, pos + 2.5),
@@ -542,8 +601,7 @@ if __name__ == "__main__":
                 )
                 add_via(pcbnew.wxPointMM(ring_x_point, ring_y_point), pad.GetNetCode())
 
-    # set_anode_tracks(nets_anode)
-    # def set_anode_tracks(nets_anode):
+    # draw the anode tracks (iterating over all nets)
     for key, value in nets_anode.items():
         print("Adding Net:", str(key))
         prefix, num = regex_split_annotation(key)
@@ -564,117 +622,123 @@ if __name__ == "__main__":
                     layer_table_rev.get("F.Cu"),
                 )
             if num == 0:
-                continue
-                # t1 = add_track(
-                #     value[14].GetPosition(),
-                #     get_ring_intersection_by_position(radius, 14.5),
-                #     value[0].GetNetCode(),
-                #     layer_table_rev.get("F.Cu"),
-                # )
-                # add_via(t1.GetEnd(), value[0].GetNetCode())
-                # add_track(
-                #     t1.GetEnd(),
-                #     get_ring_intersection_by_position(radius + 3, 16),
-                #     value[0].GetNetCode(),
-                #     layer_table_rev.get("B.Cu"),
-                # )
-                # t3 = add_track_arc(
-                #     radius + 3,
-                #     16,
-                #     24,
-                #     value[0].GetNetCode(),
-                #     layer_table_rev.get("B.Cu"),
-                # )
-                # t4 = add_track(
-                #     t3.GetEnd(),
-                #     get_ring_intersection_by_position(radius - 2, 26.5),
-                #     value[0].GetNetCode(),
-                #     layer_table_rev.get("B.Cu"),
-                # )
-                # v2 = add_via(t4.GetEnd(), value[0].GetNetCode())
-                # ring_pos = v2.GetPosition()
+                t_start, t_stop = add_track_arc(
+                    radius_from_net_number(15),
+                    13.5,
+                    26.5,
+                    value[-1].GetNetCode(),
+                    layer_table_rev.get("B.Cu"),
+                )
+
+                t0 = add_track(
+                    get_ring_intersection_by_position(radius, 13.5),
+                    t_start.GetStart(),
+                    value[-1].GetNetCode(),
+                    layer_table_rev.get("F.Cu"),
+                )
+                add_via(t0.GetEnd(), t0.GetNetCode())
+
+                v = add_via(t_stop.GetEnd(), t_stop.GetNetCode())
+                ring_pos = v.GetPosition()
             if num == 1:
                 ring_pos = get_ring_intersection_by_position(radius, 28.5)
             if num == 2:
                 ring_pos = get_ring_intersection_by_position(radius, 31.5)
             if num == 3:
-                continue
-                # v1 = add_via(
-                #     get_ring_intersection_by_position(radius, 45.5),
-                #     value[0].GetNetCode(),
-                # )
-                # add_track(
-                #     v1.GetPosition(),
-                #     get_ring_intersection_by_position(radius + 3, 44),
-                #     value[0].GetNetCode(),
-                #     layer_table_rev.get("B.Cu"),
-                # )
-                # t3 = add_track_arc(
-                #     radius + 3,
-                #     44,
-                #     36,
-                #     value[0].GetNetCode(),
-                #     layer_table_rev.get("B.Cu"),
-                # )
-                # t4 = add_track(
-                #     t3.GetEnd(),
-                #     get_ring_intersection_by_position(radius - 2, 33.5),
-                #     value[0].GetNetCode(),
-                #     layer_table_rev.get("B.Cu"),
-                # )
-                # v2 = add_via(t4.GetEnd(), value[0].GetNetCode())
-                # ring_pos = v2.GetPosition()
+                t_start, t_stop = add_track_arc(
+                    radius_from_net_number(15),
+                    46.5,
+                    33.5,
+                    value[-1].GetNetCode(),
+                    layer_table_rev.get("B.Cu"),
+                )
+
+                t0 = add_track(
+                    get_ring_intersection_by_position(radius, 46.5),
+                    t_start.GetStart(),
+                    value[-1].GetNetCode(),
+                    layer_table_rev.get("F.Cu"),
+                )
+                add_via(t0.GetEnd(), t0.GetNetCode())
+
+                v = add_via(t_stop.GetEnd(), t_stop.GetNetCode())
+                ring_pos = v.GetPosition()
             add_track_with_intersection(ring_pos, con_pad_pos, value[0].GetNetCode())
         elif num == 4:
             radius = math.sqrt(
                 (
-                        math.pow(value[0].GetPosition()[0], 2)
-                        + math.pow(value[0].GetPosition()[1], 2)
+                    math.pow(value[0].GetPosition()[0], 2)
+                    + math.pow(value[0].GetPosition()[1], 2)
                 )
             ) / math.pow(10, 6)
-            add_track_ring(radius, value[0].GetNetCode(),
-                           layer_table_rev.get("F.Cu"))
-        #     for i in range(2):
-        #         v1 = add_via(
-        #             get_ring_intersection_by_position(radius, [24.5, 35.5][i]),
-        #             value[0].GetNetCode(),
-        #         )
-        #         t1 = add_track(
-        #             v1.GetPosition(),
-        #             get_ring_intersection_by_position(radius - 6, [24.5, 35.5][i]),
-        #             value[0].GetNetCode(),
-        #             layer_table_rev.get("B.Cu"),
-        #         )
-        #         v2 = add_via(t1.GetEnd(), value[0].GetNetCode())
-        #         add_track_with_intersection(
-        #             v2.GetPosition(),
-        #             value[[13, 12][i]].GetPosition(),
-        #             value[0].GetNetCode(),
-        #         )
+            inner_radius = radius_from_net_number(-2)
+            add_track_ring(radius, value[0].GetNetCode(), layer_table_rev.get("F.Cu"))
+            t = add_track(
+                get_ring_intersection_by_position(radius, 29.5),
+                calc_xy_location_from_clock_position_WxPoint(inner_radius, 29.5),
+                value[-1].GetNetCode(),
+                layer_table_rev.get("F.Cu"),
+            )
+            v = add_via(t.GetEnd(), t.GetNetCode())
+            t_start, t_stop = add_track_arc(
+                inner_radius, 36, 24, t.GetNetCode(), layer_table_rev.get("B.Cu")
+            )
+
+            def distance(wx1, wx2):
+                return np.sqrt(np.square(wx1.x - wx2.x) + np.square(wx1.y - wx2.y))
+
+            for pad in modules_connector["J2"].Pads():
+                if not pad.GetNet().GetShortNetname() == "a4":
+                    continue
+                dist1 = distance(pad.GetPosition(), t_start.GetStart())
+                dist2 = distance(pad.GetPosition(), t_stop.GetEnd())
+                if dist1 < dist2:
+                    t_pos = t_start.GetStart()
+                else:
+                    t_pos = t_stop.GetEnd()
+                add_via(t_pos, pad.GetNetCode())
+                add_track_with_intersection(t_pos, pad.GetPosition(), pad.GetNetCode())
         elif num in [50, 51, 60, 61]:  # TODO: Sort Values?
+            pad_connector = next(
+                pad_
+                for pad_ in value
+                if pad_.GetParent().GetReference().startswith("J")
+            )
+            value.remove(pad_connector)
             add_track(
-                value[2].GetPosition(),
+                value[0].GetPosition(),
                 value[1].GetPosition(),
                 value[0].GetNetCode(),
                 layer_table_rev.get("F.Cu"),
             )
-            # v = add_via(
-            #     pcbnew.wxPoint(
-            #         value[2].GetPosition()[0], value[2].GetPosition()[1] - 3000000
-            #     ),
-            #     value[0].GetNetCode(),
-            # )
-            # add_track(
-            #     v.GetEnd(),
-            #     value[0].GetPosition(),
-            #     value[0].GetNetCode(),
-            #     layer_table_rev.get("B.Cu"),
-            # )
+            if value[0].GetPosition().y > 0:
+                pad_digit = value[0]
+            else:
+                pad_digit = value[1]
+            # digit_u_connect(pad_digit, pad_connector, -2)
+            v = add_via(
+                pcbnew.wxPoint(
+                    pad_digit.GetPosition()[0], pad_digit.GetPosition()[1] - 3000000
+                ),
+                pad_digit.GetNetCode(),
+            )
+            t = add_track(
+                v.GetEnd(),
+                pcbnew.wxPoint(
+                    pad_connector.GetPosition().x,
+                    v.GetPosition().y
+                    + abs(pad_connector.GetPosition().x - v.GetPosition().x),
+                ),
+                value[0].GetNetCode(),
+                layer_table_rev.get("B.Cu"),
+            )
+            add_track(
+                t.GetEnd(), pad_connector.GetPosition(), t.GetNetCode(), t.GetLayer()
+            )
         elif num in [11, 21]:
             t1 = add_track(
                 value[0].GetPosition(),
-                pcbnew.wxPoint(value[1].GetPosition()[0],
-                               value[0].GetPosition()[1]),
+                pcbnew.wxPoint(value[1].GetPosition()[0], value[0].GetPosition()[1]),
                 value[0].GetNetCode(),
                 layer_table_rev.get("F.Cu"),
             )
