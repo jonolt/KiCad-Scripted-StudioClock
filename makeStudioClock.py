@@ -1,9 +1,3 @@
-# run in pcbnew python console
-# import sys; sys.path.append("Documents/KiCadStudioClock")
-# import makeStudioClock as msc
-
-from __future__ import division  # for float division
-
 import collections
 import math
 import re
@@ -11,161 +5,146 @@ import re
 import numpy as np
 import pcbnew
 
-Modules = {}
-Nets = {}
-Radius = 42
 
-layer_table = {}
-layer_table_rev = {}
-
-# Uncomment to work with the File (run in project directory):
-pcb = pcbnew.LoadBoard("StudioClock.kicad_pcb")
-pcb.BuildListOfNets()  # needed fo load file
-# Work in KiCad Console:
-# pcb = pcbnew.GetBoard()
-
-
-# calc rotation angle (rad) with Position in Clock: float -> float
 def calc_rad_angle_from_clock_position(clock_position):
+    """Calculate the rotation angle (rad) of a module at clock Position.
+
+    :param int clock_position:
+    :return float:
+    """
     return -math.pi / 30 * (clock_position % 60) - math.pi
 
 
-# calc rotation angle (deg) with Position: float -> float
 def calc_deg_angle_from_clock_position(clock_position):
+    """Calculate the rotation angle (deg) of a module at clock Position.
+
+    :param int clock_position:
+    :return float:
+    """
     return math.degrees(calc_rad_angle_from_clock_position(clock_position))
 
 
-# calc the Position(s) with the Radius and an Angle: float, float -> float/float/wxPoint
-def calc_x_location_from_clock_position_mm(radius, clock_position):
-    return (
-        math.sin(calc_rad_angle_from_clock_position(clock_position)) * radius
-    )  # +originOffsetXY[0]
-
-
-def calc_y_location_from_clock_position_mm(radius, clock_position):
-    return (
-        math.cos(calc_rad_angle_from_clock_position(clock_position)) * radius
-    )  # +originOffsetXY[1]
-
-
 def calc_xy_location_from_clock_position_WxPoint(radius, clock_position):  # noqa
+    """
+
+    :param radius:
+    :param clock_position:
+    :return:
+    """
     return pcbnew.wxPointMM(
-        calc_x_location_from_clock_position_mm(radius, clock_position),
-        calc_y_location_from_clock_position_mm(radius, clock_position),
+        math.sin(calc_rad_angle_from_clock_position(clock_position)) * radius,
+        math.cos(calc_rad_angle_from_clock_position(clock_position)) * radius,
     )
 
 
-# calc offset of digit (0,1,2,3)
-def calc_dig_location_from_position(digit_position, digit_space, digit_width):
-    pos_x = [
-        -1.5 - digit_space / digit_width * 2,
-        -0.5 - digit_space / digit_width,
-        0.5 + digit_space / digit_width,
-        1.5 + digit_space / digit_width * 2,
-    ][digit_position] * digit_width
-    pos_y = 0
-    return pcbnew.wxPointMM(
-        pos_x, pos_y
-    )  # (posX+originOffsetXY[0],posY+originOffsetXY[1])
-
-
 def radius_from_net_number(number):
-    if number < 15:
-        f = 16 - number  # range(15 + 1, 0, -1)[number]
-    else:
-        f = 17
-    return (
-        Radius - 1.2 - (16 - number) * 0.75
-    )  # this can be replaced by a more advanced equation
+    """Calculates a radius from a number with a hardcoded formular.
+
+    :param int number:
+    :return float:
+    """
+    return Radius - 1.2 - (16 - number) * 0.75
 
 
-# add a track and add it: wxPoint, wxPoint, int, int -> Track
 def add_track(start_location, stop_location, net_code, layer):
+    """Add a track with given parameters.
+
+    :param pcbnew.wxPoint start_location: start position of track
+    :param pcbnew.wxPoint stop_location: stop position of track
+    :param int net_code: id of net as returned by GetNetCode()
+    :param int layer: integer code of layer on pcb
+    :return pcbnew.Track: added track
     """
+    track = pcbnew.TRACK(pcb)
+    pcb.Add(track)
+    track.SetStart(start_location)
+    track.SetEnd(stop_location)
+    track.SetNetCode(net_code)
+    track.SetLayer(layer)
+    track.SetWidth(300000)
+    return track
 
-    :param start_location:
-    :param stop_location:
-    :param net_code:
-    :param layer:
-    :return:
+
+def add_track_arc(
+    radius_polygon, start_clock_position, stop_clock_position, net_code, layer
+):
+    """Add a polygon arc (based on a 60 segment polygon) tracks with given parameters.
+
+    :param float radius_polygon: nominal radius of the ring
+    :param float start_clock_position: start clock position [0, ..., 60]
+    :param float stop_clock_position: stop clock position [0, ..., 60]
+    :param int net_code: id of net as returned by GetNetCode()
+    :param int layer: integer code of layer on pcb
+    :return tuple of pcbnew.Track: first and last added track
     """
-    t = pcbnew.TRACK(pcb)
-    pcb.Add(t)
-    t.SetStart(start_location)
-    t.SetEnd(stop_location)
-    t.SetNetCode(net_code)
-    t.SetLayer(layer)
-    t.SetWidth(300000)
-    return t
+    track_start = None
+    track_stop = None
 
-
-# add an arc of tracks with the Position Indices of the SecondsLeds:
-# float, int, int, int, int -> Track
-def add_track_arc(radius, start_ring_position, stop_ring_position, net_code, layer):
-    """rig position in parts of 60 part
-
-    Note: not natural number position will start/end on the exact circle
-
-    :param radius:
-    :param start_ring_position:
-    :param stop_ring_position:
-    :param net_code:
-    :param layer:
-    :return:
-    """
-    t_start = None
-    t_stop = None
-
-    start_frac, _start_int = np.modf(start_ring_position)
-    stop_frac, _stop_int = np.modf(stop_ring_position)
-    if stop_ring_position > start_ring_position:
+    start_frac, _start_int = np.modf(start_clock_position)
+    stop_frac, _stop_int = np.modf(stop_clock_position)
+    if stop_clock_position > start_clock_position:
         if start_frac:
             _start_int += 1
         for clock_pos in np.arange(_start_int, _stop_int):
-            t_stop = add_track(
-                calc_xy_location_from_clock_position_WxPoint(radius, clock_pos),
-                calc_xy_location_from_clock_position_WxPoint(radius, clock_pos + 1),
+            track_stop = add_track(
+                calc_xy_location_from_clock_position_WxPoint(radius_polygon, clock_pos),
+                calc_xy_location_from_clock_position_WxPoint(
+                    radius_polygon, clock_pos + 1
+                ),
                 net_code,
                 layer,
             )
-            if t_start is None:
-                t_start = t_stop
+            if track_start is None:
+                track_start = track_stop
     else:
         if stop_frac:
             _stop_int -= 1
         for clock_pos in np.arange(_start_int, _stop_int, -1):
-            t_stop = add_track(
-                calc_xy_location_from_clock_position_WxPoint(radius, clock_pos),
-                calc_xy_location_from_clock_position_WxPoint(radius, clock_pos - 1),
+            track_stop = add_track(
+                calc_xy_location_from_clock_position_WxPoint(radius_polygon, clock_pos),
+                calc_xy_location_from_clock_position_WxPoint(
+                    radius_polygon, clock_pos - 1
+                ),
                 net_code,
                 layer,
             )
-            if t_start is None:
-                t_start = t_stop
+            if track_start is None:
+                track_start = track_stop
     if start_frac:
-        t_start = add_track(
-            get_ring_intersection_by_position(radius, start_ring_position),
-            t_start.GetStart(),
+        track_start = add_track(
+            get_ring_intersection_by_position(radius_polygon, start_clock_position),
+            track_start.GetStart(),
             net_code,
             layer,
         )
     if stop_frac:
-        t_stop = add_track(
-            t_stop.GetEnd(),
-            get_ring_intersection_by_position(radius, stop_ring_position),
+        track_stop = add_track(
+            track_stop.GetEnd(),
+            get_ring_intersection_by_position(radius_polygon, stop_clock_position),
             net_code,
             layer,
         )
-    return t_start, t_stop
+    return track_start, track_stop
 
 
-# add a full Track ring with the desired Radius: float, int, int
-def add_track_ring(radius, net_code, layer):
-    add_track_arc(radius, 0, 61, net_code, layer)
+def add_track_ring(radius_polygon, net_code, layer):
+    """Add a polygon ring of 60 tracks with given parameters.
+
+    :param float radius_polygon: nominal radius of the ring
+    :param int net_code: id of net as returned by GetNetCode()
+    :param int layer: interger code of layer on pcb
+    :return None:
+    """
+    add_track_arc(radius_polygon, 0, 61, net_code, layer)
 
 
-# add a via at the Position: wxPoint -> Via
-def add_via(position, net):
+def add_via(position, net_code):
+    """Add a via with net at position. Returns the created via.
+
+    :param pcbnew.wxPoint position:
+    :param int net_code: id of net as returned by GetNetCode()
+    :return pcbnew.VIA:
+    """
     v = pcbnew.VIA(pcb)
     pcb.Add(v)
     v.SetPosition(position)
@@ -173,19 +152,19 @@ def add_via(position, net):
     v.SetDrill(200000)
     v.SetViaType(pcbnew.VIA_THROUGH)
     v.SetLayerPair(layer_table_rev.get("F.Cu"), layer_table_rev.get("B.Cu"))
-    v.SetNetCode(net)
+    v.SetNetCode(net_code)
     return v
 
 
 def digit_u_connect(pad_a, pad_b, distance):
-    """connect two pads with a U shaped track via combination.
+    """Connect two pads with a U shaped track and via combination.
 
     The horizontal lines are on the bottom and the vertical lines are on the top layer.
 
     :param pad_a: one pad to connect
     :param pad_b: other pad to connect
     :param distance: distance of the horizontal line to the pad
-    :return: via further away from the center
+    :return pcbnew.VIA: via further away from the center
     """
     net_code = pad_a.GetNetCode()
     assert net_code == pad_b.GetNetCode()  # simple consistency check
@@ -208,18 +187,16 @@ def digit_u_connect(pad_a, pad_b, distance):
         return via_a
 
 
-# Input: eq1radiusPolygon: Equation1, radius of the circle represented by the Polygon
-# 		eq2slope: Equation2, Slope of the beam intersecting the circle
-def get_ring_intersection(eq_1_radius_polygon, eq_2_slope, left_neg_1_right_1):
-    """
+def get_ring_intersection(radius_polygon, slope, left_neg_1_right_1):
+    """Get one of the points, where a line through the center intersect the ring.
 
-    :param eq_1_radius_polygon:
-    :param eq_2_slope:
-    :param left_neg_1_right_1:
-    :return:
+    :param float radius_polygon: nominal radius of the ring
+    :param float slope: slope of the line
+    :param int left_neg_1_right_1: -1 left side (x<0), +1 right side (x>)
+    :return pcbnew.wxPoint:
     """
-    m = eq_2_slope
-    r = eq_1_radius_polygon
+    m = slope
+    r = radius_polygon
     alpha = math.pi / 60
     epsilon = math.tan(m) % (alpha * 2)
     b = math.cos(alpha) * r
@@ -229,23 +206,28 @@ def get_ring_intersection(eq_1_radius_polygon, eq_2_slope, left_neg_1_right_1):
     return pcbnew.wxPointMM(ring_x_point, ring_y_point)
 
 
-def get_ring_intersection_by_position(eq_1_radius_polygon, position):
-    """
+def get_ring_intersection_by_position(radius_polygon, position):
+    """Get the point where a ray from the center of the ring intersect a clock position.
 
-    :param eq_1_radius_polygon:
-    :param position:
-    :return:
+    :param float radius_polygon: nominal radius of the ring
+    :param float position: clock position [0, ..., 60]
+    :return pcbnew.wxPoint:
     """
     m = math.atan(position * math.pi / 30 - math.pi / 2)
-    return get_ring_intersection(
-        eq_1_radius_polygon, m, 1
-    )  # (position-30)/math.fabs(position-30))
+    return get_ring_intersection(radius_polygon, m, 1)
 
 
-def add_track_with_intersection(circle_position, target_pad_position, net_code):
-    m = circle_position[1] / circle_position[0]
+def add_track_with_intersection(position_on_circle, target_pad_position, net_code):
+    """Connects a position with a vertical line from the position and ray to the ring.
+
+    :param position_on_circle:
+    :param target_pad_position:
+    :param net_code:
+    :return:
+    """
+    m = position_on_circle[1] / position_on_circle[0]
     t = add_track(
-        circle_position,
+        position_on_circle,
         pcbnew.wxPoint(target_pad_position[0], target_pad_position[0] * m),
         net_code,
         layer_table_rev.get("F.Cu"),
@@ -255,12 +237,30 @@ def add_track_with_intersection(circle_position, target_pad_position, net_code):
 
 
 def regex_split_annotation(str_):
+    """Split a module annotation into reference base and enumeration.
+
+    :param string str_: reference string
+    :return tuple:
+    """
     a, i = re.match(r"([/A-Za-z]*)(\d*)", str_).groups()
     return a, int(i)
 
 
 if __name__ == "__main__":
 
+    # Load pcbnew file
+    pcb = pcbnew.LoadBoard("StudioClock.kicad_pcb")
+    pcb.BuildListOfNets()  # needed fo load file
+
+    layer_table = {}
+    layer_table_rev = {}
+    for num in range(51):
+        print(num)
+        layer_table[num] = pcb.GetLayerName(num)
+        layer_table_rev[pcb.GetLayerName(num)] = num
+
+    # set parameters
+    Radius = 42
     pcb_dimension_length = 100
     radius_seconds = Radius
     radius_hours = Radius * 1.1
@@ -342,8 +342,18 @@ if __name__ == "__main__":
     for key, value in modules_digit.items():
         _, i = regex_split_annotation(key)
         value.SetPosition(
-            calc_dig_location_from_position(i - 1, digit_space, digit_width)
+            pcbnew.wxPointMM(
+                [
+                    -1.5 - digit_space / digit_width * 2,
+                    -0.5 - digit_space / digit_width,
+                    0.5 + digit_space / digit_width,
+                    1.5 + digit_space / digit_width * 2,
+                ][i - 1]
+                * digit_width,
+                0,
+            )
         )
+
         if digit_orientation is not None:  # else do nothing
             value.SetOrientation(digit_orientation)
         print("Placed: Digit %d at %s" % (i, str(value.GetPosition())))
