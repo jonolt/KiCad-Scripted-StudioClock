@@ -127,97 +127,6 @@ def add_via(position, net):
     return v
 
 
-def get_parent_ref(pad):
-    return pad.GetParent().GetReference().encode("utf-8")
-
-
-def set_position_second_ring(modules_seconds, radius_seconds):
-    for key, value in modules_seconds.items():
-        _, i = regex_split_annotation(key)
-        value.SetOrientation((calc_deg_angle_from_clock_position(i - 1) - 90) * 10)
-        value.SetPosition(
-            calc_xy_location_from_clock_position_WxPoint(radius_seconds, i - 1)
-        )
-        print(
-            "Placed: Second %s at %s with rot %s"
-            % (
-                key,
-                str(value.GetPosition()),
-                str(value.GetOrientation()),
-            )
-        )
-
-
-def set_position_hour_ring(modules_hours, radius_hours):
-    for key, value in modules_hours.items():
-        _, i = regex_split_annotation(key)
-        value.SetOrientation(
-            (calc_deg_angle_from_clock_position((i - 61) * 5) - 90) * 10
-        )
-        value.SetPosition(
-            calc_xy_location_from_clock_position_WxPoint(radius_hours, (i - 61) * 5)
-        )
-        print(
-            "Placed: Hour %s at %s with rot %s"
-            % (
-                key,
-                str(value.GetPosition()),
-                str(value.GetOrientation()),
-            )
-        )
-
-
-def set_position_digits(modules_digits, digit_space, digit_width, revers=True):
-    for key, value in modules_digits.items():
-        _, i = regex_split_annotation(key)
-        value.SetPosition(
-            calc_dig_location_from_position(i - 1, digit_space, digit_width)
-        )
-        if revers:
-            value.SetOrientation(2700)
-        print("Placed: Digit %d at %s" % (i, str(value.GetPosition())))
-
-
-def set_separation_modules(modules_sep, digit_high):
-    for key, module in modules_sep.items():
-        _, i = regex_split_annotation(key)  # TODO fix one must be plus
-        sign = 1 if key == "D73" else -1
-        module.SetPosition(pcbnew.wxPointMM(0, sign * digit_high * 0.4))
-        module.SetOrientation(2700)
-        print("Placed: Seperator %s at %s" % (key, str(module.GetPosition())))
-
-
-def set_connector_modules(modules_con, digit_high):
-    for key, module in modules_con.items():
-        _, i = regex_split_annotation(key)
-        sign = -1 if key == "J1" else 1
-        module.SetPosition(pcbnew.wxPointMM(0, sign * digit_high * 1.5))
-        module.SetOrientation(2700)
-        # module.Se # TODO change front to back side
-        print("Placed: Connector %s at %s" % (key, str(module.GetPosition())))
-
-
-def set_dimension(length):
-    corners = [[-1, -1], [-1, 1], [1, 1], [1, -1]]
-    print("Setting Board Dimensions too:" + str(length) + "x" + str(length))
-    tmp_print = []
-    for i in range(4):
-        seg = pcbnew.DRAWSEGMENT(pcb)
-        pcb.Add(seg)
-        seg.SetStart(
-            pcbnew.wxPointMM(corners[i][0] * length / 2, corners[i][1] * length / 2)
-        )
-        seg.SetEnd(
-            pcbnew.wxPointMM(
-                corners[(i + 1) % 4][0] * length / 2,
-                corners[(i + 1) % 4][1] * length / 2,
-            )
-        )
-        seg.SetLayer(layer_table_rev.get("Edge.Cuts"))
-        tmp_print.append(seg.GetStart())
-    print("Board Corners:" + str(tmp_print))
-
-
 def u_connect(location1, location2, offset, net_code):
     location_a = pcbnew.wxPointMM(
         location1[0] / 1000000.0, location1[1] / 1000000.0 + offset
@@ -257,28 +166,165 @@ def get_ring_intersection_by_position(eq_1_radius_polygon, position):
     )  # (position-30)/math.fabs(position-30))
 
 
-def set_digits_connections(modules_digits, modules_separation_leds):
+def add_track_with_intersection(circle_position, target_pad_position, net_code):
+    m = circle_position[1] / circle_position[0]
+    t = add_track(
+        circle_position,
+        pcbnew.wxPoint(target_pad_position[0], target_pad_position[0] * m),
+        net_code,
+        layer_table_rev.get("F.Cu"),
+    )
+    add_via(t.GetEnd(), net_code)
+    add_track(t.GetEnd(), target_pad_position, net_code, layer_table_rev.get("B.Cu"))
 
-    print(
-        "Connecting Digits %s and Separation LEDs %s with Nets"
-        % (
-            str(
-                map(lambda x: x.GetReference().encode("utf8"), modules_digits.values())
-            ),
-            str(
-                list(
-                    map(  # TODO do this as list comprehension
-                        lambda x: x.GetReference().encode("utf8"),
-                        modules_separation_leds.values(),
-                    )
-                )
-            ),
+
+def regex_split_annotation(str_):
+    a, i = re.match(r"([/A-Za-z]*)(\d*)", str_).groups()
+    return a, int(i)
+
+
+if __name__ == "__main__":
+
+    pcb_dimension_length = 100
+    radius_seconds = Radius
+    radius_hours = Radius * 1.1
+
+    digit_space = 3
+    digit_width = 9.8  # only change when digit footprint changes
+    digit_high = 10  # only change when digit footprint changes
+    digit_orientation = 2700  # only change when digit footprint changes
+
+    # note assumes dict are ordered, which they are in python3.9
+
+    # collect layer names
+    for num in range(51):
+        print(num)
+        layer_table[num] = pcb.GetLayerName(num)
+        layer_table_rev[pcb.GetLayerName(num)] = num
+        # print("{} {}".format(i, pcb.GetLayerName(i)))
+
+    # delete old, existing tracks and drawings
+    print(f"deleting {len(list(pcb.GetTracks()))} tracks")
+    for track in pcb.GetTracks():
+        pcb.Delete(track)
+    print(f"deleting {len(list(pcb.GetDrawings()))} drawings")
+    for d in pcb.GetDrawings():
+        pcb.Remove(d)
+
+    # collect and sort modules into groups (second, hour, digit, seperator, connector)
+    modules = {mod.GetReference(): mod for mod in sorted(pcb.GetModules())}
+    modules_seconds = {k: modules[k] for k in ["D" + str(i) for i in range(1, 60 + 1)]}
+    modules_hours = {k: modules[k] for k in ["D" + str(i) for i in range(61, 72 + 1)]}
+    modules_digit = {k: modules[k] for k in ["U" + str(i) for i in range(1, 4 + 1)]}
+    modules_separation = {k: modules[k] for k in ["D" + str(i) for i in [73, 74]]}
+    modules_connector = {k: modules[k] for k in ["J" + str(i) for i in [1, 2]]}
+
+    # collect and sort nets into groups (anode, cathode)
+    nets = collections.defaultdict(list)
+    for mod in modules.values():
+        for pad in mod.Pads():
+            nets[pad.GetShortNetname()].append(pad)
+    nets_cathode = {k: v for k, v in nets.items() if k.startswith("k")}
+    nets_anode = {k: v for k, v in nets.items() if k.startswith("a")}
+
+    # position the second modules in a circle
+    for key, value in modules_seconds.items():
+        _, i = regex_split_annotation(key)
+        value.SetOrientation((calc_deg_angle_from_clock_position(i - 1) - 90) * 10)
+        value.SetPosition(
+            calc_xy_location_from_clock_position_WxPoint(radius_seconds, i - 1)
         )
+        print(
+            "Placed: Second %s at %s with rot %s"
+            % (
+                key,
+                str(value.GetPosition()),
+                str(value.GetOrientation()),
+            )
+        )
+
+    # position the hour modules in a circle
+    for key, value in modules_hours.items():
+        _, i = regex_split_annotation(key)
+        value.SetOrientation(
+            (calc_deg_angle_from_clock_position((i - 61) * 5) - 90) * 10
+        )
+        value.SetPosition(
+            calc_xy_location_from_clock_position_WxPoint(radius_hours, (i - 61) * 5)
+        )
+        print(
+            "Placed: Hour %s at %s with rot %s"
+            % (
+                key,
+                str(value.GetPosition()),
+                str(value.GetOrientation()),
+            )
+        )
+
+    # position the digit and digit seperator modules (4x7seg, 2xled)
+    for key, value in modules_digit.items():
+        _, i = regex_split_annotation(key)
+        value.SetPosition(
+            calc_dig_location_from_position(i - 1, digit_space, digit_width)
+        )
+        if digit_orientation is not None:  # else do nothing
+            value.SetOrientation(digit_orientation)
+        print("Placed: Digit %d at %s" % (i, str(value.GetPosition())))
+
+    for key, module in modules_separation.items():
+        _, i = regex_split_annotation(key)  # TODO fix one must be plus
+        sign = 1 if key == "D73" else -1
+        module.SetPosition(pcbnew.wxPointMM(0, sign * digit_high * 0.4))
+        module.SetOrientation(2700)
+        print("Placed: Seperator %s at %s" % (key, str(module.GetPosition())))
+
+    # position the two connector modules on the back of the clock
+    for key, module in modules_connector.items():
+        _, i = regex_split_annotation(key)
+        sign = -1 if key == "J1" else 1
+        module.SetPosition(pcbnew.wxPointMM(0, sign * digit_high * 1.5))
+        module.SetOrientation(2700)
+        # module.Se # TODO change front to back side
+        print("Placed: Connector %s at %s" % (key, str(module.GetPosition())))
+
+    # set the pcb size
+    _pcb_corners = [[-1, -1], [-1, 1], [1, 1], [1, -1]]
+    print(
+        "Setting Board Dimensions too:"
+        + str(pcb_dimension_length)
+        + "x"
+        + str(pcb_dimension_length)
+    )
+    tmp_print = []
+    for i in range(4):
+        seg = pcbnew.DRAWSEGMENT(pcb)
+        pcb.Add(seg)
+        seg.SetStart(
+            pcbnew.wxPointMM(
+                _pcb_corners[i][0] * pcb_dimension_length / 2,
+                _pcb_corners[i][1] * pcb_dimension_length / 2,
+            )
+        )
+        seg.SetEnd(
+            pcbnew.wxPointMM(
+                _pcb_corners[(i + 1) % 4][0] * pcb_dimension_length / 2,
+                _pcb_corners[(i + 1) % 4][1] * pcb_dimension_length / 2,
+            )
+        )
+        seg.SetLayer(layer_table_rev.get("Edge.Cuts"))
+        tmp_print.append(seg.GetStart())
+    print("Board Corners:" + str(tmp_print))
+
+    # draw the cathode tracks of the digit (using modules as base for drawing)
+    print(
+        f"Connecting Digits {[x.GetReference() for x in modules_digit.values()]} "
+        f"and Separation LEDs {[x.GetReference() for x in modules_separation.values()]}"
+        f" with Nets"
     )
     pads_lists = [list()] * 4
-    for i, key in enumerate(modules_digits):
+    for i, key in enumerate(modules_digit):
         pads_lists[i] = [None] * 10
-        for pad in modules_digits[key].Pads():
+        for pad in modules_digit[key].Pads():
             pads_lists[i][int(pad.GetPadName()) - 1] = pad
         pads_lists[i].pop(2)
         pads_lists[i].pop(6)
@@ -348,9 +394,9 @@ def set_digits_connections(modules_digits, modules_separation_leds):
         )
         if i == 1:
             led_pads = []
-            led_modules_keys = modules_separation_leds.keys()
+            led_modules_keys = modules_separation.keys()
             for key in led_modules_keys:
-                for pad in modules_separation_leds[key].Pads():
+                for pad in modules_separation[key].Pads():
                     if pad.GetNetCode() == pads_lists[2][i - 1].GetNetCode():
                         led_pads.append(pad)
             t3 = add_track(
@@ -402,8 +448,7 @@ def set_digits_connections(modules_digits, modules_separation_leds):
         else:
             add_via(t2.GetEnd(), pads_lists[0][i].GetNetCode())
 
-
-def set_cathode_tracks(nets_cathode):
+    # draw the cathode tracks of the digit  (iterating over all nets)
     for key, value in nets_cathode.items():
         prefix, num = regex_split_annotation(key)
         if key == "k15":
@@ -413,7 +458,7 @@ def set_cathode_tracks(nets_cathode):
         add_track_ring(r, value[0].GetNetCode(), layer_table_rev.get("B.Cu"))
         for pad in value:
             module_ref = regex_split_annotation(pad.GetParent().GetReference())
-            if module_ref[0] == "D" and module_ref[1] <= 60:
+            if module_ref[0] == "D" and module_ref[1] <= 60:  # seconds
                 corner_location = calc_xy_location_from_clock_position_WxPoint(
                     r, module_ref[1] - 1
                 )
@@ -424,7 +469,7 @@ def set_cathode_tracks(nets_cathode):
                     layer_table_rev.get("F.Cu"),
                 )
                 add_via(corner_location, pad.GetNetCode())
-            elif module_ref[0] == "D" and module_ref[1] <= 72:
+            elif module_ref[0] == "D" and module_ref[1] <= 72:  # hours
                 radius = math.sqrt(
                     (
                         math.pow(pad.GetPosition()[0], 2)
@@ -459,7 +504,7 @@ def set_cathode_tracks(nets_cathode):
                 add_via(t3.GetEnd(), pad.GetNetCode())
                 if module_ref[1] not in [61, 71, 72]:
                     add_via(t4.GetEnd(), pad.GetNetCode())
-            elif module_ref[0] == "J":
+            elif module_ref[0] == "J":  # connectors
                 # (origin to layerSwitch): vertical track segment to change layer
                 via_point_y = pad.GetParent().GetPosition()[1] / 1000000.0 - 4.0
                 via_point_x = pad.GetPosition()[0] / 1000000.0
@@ -497,35 +542,12 @@ def set_cathode_tracks(nets_cathode):
                 )
                 add_via(pcbnew.wxPointMM(ring_x_point, ring_y_point), pad.GetNetCode())
 
-
-def add_track_with_intersection(circle_position, target_pad_position, net_code):
-    m = circle_position[1] / circle_position[0]
-    t = add_track(
-        circle_position,
-        pcbnew.wxPoint(target_pad_position[0], target_pad_position[0] * m),
-        net_code,
-        layer_table_rev.get("F.Cu"),
-    )
-    add_via(t.GetEnd(), net_code)
-    add_track(t.GetEnd(), target_pad_position, net_code, layer_table_rev.get("B.Cu"))
-
-
-def set_anode_tracks(nets_anode):
+    # set_anode_tracks(nets_anode)
+    # def set_anode_tracks(nets_anode):
     for key, value in nets_anode.items():
         print("Adding Net:", str(key))
-        print(
-            list(
-                map(
-                    lambda x: (
-                        x.GetParent().GetReference().encode("utf8"),
-                        x.GetPadName(),
-                    ),
-                    value,
-                )
-            )
-        )
         prefix, num = regex_split_annotation(key)
-        if num <= 3:
+        if num <= 3:  # 4 segments of the LED ring
             ring_pos = None
             con_pad_pos = value[15].GetPosition()
             radius = math.sqrt(
@@ -541,92 +563,94 @@ def set_anode_tracks(nets_anode):
                     value[i].GetNetCode(),
                     layer_table_rev.get("F.Cu"),
                 )
+            if num == 0:
+                continue
+                # t1 = add_track(
+                #     value[14].GetPosition(),
+                #     get_ring_intersection_by_position(radius, 14.5),
+                #     value[0].GetNetCode(),
+                #     layer_table_rev.get("F.Cu"),
+                # )
+                # add_via(t1.GetEnd(), value[0].GetNetCode())
+                # add_track(
+                #     t1.GetEnd(),
+                #     get_ring_intersection_by_position(radius + 3, 16),
+                #     value[0].GetNetCode(),
+                #     layer_table_rev.get("B.Cu"),
+                # )
+                # t3 = add_track_arc(
+                #     radius + 3,
+                #     16,
+                #     24,
+                #     value[0].GetNetCode(),
+                #     layer_table_rev.get("B.Cu"),
+                # )
+                # t4 = add_track(
+                #     t3.GetEnd(),
+                #     get_ring_intersection_by_position(radius - 2, 26.5),
+                #     value[0].GetNetCode(),
+                #     layer_table_rev.get("B.Cu"),
+                # )
+                # v2 = add_via(t4.GetEnd(), value[0].GetNetCode())
+                # ring_pos = v2.GetPosition()
             if num == 1:
                 ring_pos = get_ring_intersection_by_position(radius, 28.5)
             if num == 2:
                 ring_pos = get_ring_intersection_by_position(radius, 31.5)
-            if num == 0:
-                t1 = add_track(
-                    value[14].GetPosition(),
-                    get_ring_intersection_by_position(radius, 14.5),
-                    value[0].GetNetCode(),
-                    layer_table_rev.get("F.Cu"),
-                )
-                add_via(t1.GetEnd(), value[0].GetNetCode())
-                add_track(
-                    t1.GetEnd(),
-                    get_ring_intersection_by_position(radius + 3, 16),
-                    value[0].GetNetCode(),
-                    layer_table_rev.get("B.Cu"),
-                )
-                t3 = add_track_arc(
-                    radius + 3,
-                    16,
-                    24,
-                    value[0].GetNetCode(),
-                    layer_table_rev.get("B.Cu"),
-                )
-                t4 = add_track(
-                    t3.GetEnd(),
-                    get_ring_intersection_by_position(radius - 2, 26.5),
-                    value[0].GetNetCode(),
-                    layer_table_rev.get("B.Cu"),
-                )
-                v2 = add_via(t4.GetEnd(), value[0].GetNetCode())
-                ring_pos = v2.GetPosition()
             if num == 3:
-                # t1 Not Needed as Track already there
-                v1 = add_via(
-                    get_ring_intersection_by_position(radius, 45.5),
-                    value[0].GetNetCode(),
-                )
-                add_track(
-                    v1.GetPosition(),
-                    get_ring_intersection_by_position(radius + 3, 44),
-                    value[0].GetNetCode(),
-                    layer_table_rev.get("B.Cu"),
-                )
-                t3 = add_track_arc(
-                    radius + 3,
-                    44,
-                    36,
-                    value[0].GetNetCode(),
-                    layer_table_rev.get("B.Cu"),
-                )
-                t4 = add_track(
-                    t3.GetEnd(),
-                    get_ring_intersection_by_position(radius - 2, 33.5),
-                    value[0].GetNetCode(),
-                    layer_table_rev.get("B.Cu"),
-                )
-                v2 = add_via(t4.GetEnd(), value[0].GetNetCode())
-                ring_pos = v2.GetPosition()
+                continue
+                # v1 = add_via(
+                #     get_ring_intersection_by_position(radius, 45.5),
+                #     value[0].GetNetCode(),
+                # )
+                # add_track(
+                #     v1.GetPosition(),
+                #     get_ring_intersection_by_position(radius + 3, 44),
+                #     value[0].GetNetCode(),
+                #     layer_table_rev.get("B.Cu"),
+                # )
+                # t3 = add_track_arc(
+                #     radius + 3,
+                #     44,
+                #     36,
+                #     value[0].GetNetCode(),
+                #     layer_table_rev.get("B.Cu"),
+                # )
+                # t4 = add_track(
+                #     t3.GetEnd(),
+                #     get_ring_intersection_by_position(radius - 2, 33.5),
+                #     value[0].GetNetCode(),
+                #     layer_table_rev.get("B.Cu"),
+                # )
+                # v2 = add_via(t4.GetEnd(), value[0].GetNetCode())
+                # ring_pos = v2.GetPosition()
             add_track_with_intersection(ring_pos, con_pad_pos, value[0].GetNetCode())
         elif num == 4:
             radius = math.sqrt(
                 (
-                    math.pow(value[0].GetPosition()[0], 2)
-                    + math.pow(value[0].GetPosition()[1], 2)
+                        math.pow(value[0].GetPosition()[0], 2)
+                        + math.pow(value[0].GetPosition()[1], 2)
                 )
             ) / math.pow(10, 6)
-            add_track_ring(radius, value[0].GetNetCode(), layer_table_rev.get("F.Cu"))
-            for i in range(2):
-                v1 = add_via(
-                    get_ring_intersection_by_position(radius, [24.5, 35.5][i]),
-                    value[0].GetNetCode(),
-                )
-                t1 = add_track(
-                    v1.GetPosition(),
-                    get_ring_intersection_by_position(radius - 6, [24.5, 35.5][i]),
-                    value[0].GetNetCode(),
-                    layer_table_rev.get("B.Cu"),
-                )
-                v2 = add_via(t1.GetEnd(), value[0].GetNetCode())
-                add_track_with_intersection(
-                    v2.GetPosition(),
-                    value[[13, 12][i]].GetPosition(),
-                    value[0].GetNetCode(),
-                )
+            add_track_ring(radius, value[0].GetNetCode(),
+                           layer_table_rev.get("F.Cu"))
+        #     for i in range(2):
+        #         v1 = add_via(
+        #             get_ring_intersection_by_position(radius, [24.5, 35.5][i]),
+        #             value[0].GetNetCode(),
+        #         )
+        #         t1 = add_track(
+        #             v1.GetPosition(),
+        #             get_ring_intersection_by_position(radius - 6, [24.5, 35.5][i]),
+        #             value[0].GetNetCode(),
+        #             layer_table_rev.get("B.Cu"),
+        #         )
+        #         v2 = add_via(t1.GetEnd(), value[0].GetNetCode())
+        #         add_track_with_intersection(
+        #             v2.GetPosition(),
+        #             value[[13, 12][i]].GetPosition(),
+        #             value[0].GetNetCode(),
+        #         )
         elif num in [50, 51, 60, 61]:  # TODO: Sort Values?
             add_track(
                 value[2].GetPosition(),
@@ -634,22 +658,23 @@ def set_anode_tracks(nets_anode):
                 value[0].GetNetCode(),
                 layer_table_rev.get("F.Cu"),
             )
-            v = add_via(
-                pcbnew.wxPoint(
-                    value[2].GetPosition()[0], value[2].GetPosition()[1] - 3000000
-                ),
-                value[0].GetNetCode(),
-            )
-            add_track(
-                v.GetEnd(),
-                value[0].GetPosition(),
-                value[0].GetNetCode(),
-                layer_table_rev.get("B.Cu"),
-            )
+            # v = add_via(
+            #     pcbnew.wxPoint(
+            #         value[2].GetPosition()[0], value[2].GetPosition()[1] - 3000000
+            #     ),
+            #     value[0].GetNetCode(),
+            # )
+            # add_track(
+            #     v.GetEnd(),
+            #     value[0].GetPosition(),
+            #     value[0].GetNetCode(),
+            #     layer_table_rev.get("B.Cu"),
+            # )
         elif num in [11, 21]:
             t1 = add_track(
                 value[0].GetPosition(),
-                pcbnew.wxPoint(value[1].GetPosition()[0], value[0].GetPosition()[1]),
+                pcbnew.wxPoint(value[1].GetPosition()[0],
+                               value[0].GetPosition()[1]),
                 value[0].GetNetCode(),
                 layer_table_rev.get("F.Cu"),
             )
@@ -660,55 +685,5 @@ def set_anode_tracks(nets_anode):
                 value[0].GetNetCode(),
                 layer_table_rev.get("B.Cu"),
             )
-
-
-def regex_split_annotation(str_):
-    a, i = re.match(r"([/A-Za-z]*)(\d*)", str_).groups()
-    return a, int(i)
-
-
-if __name__ == "__main__":
-
-    # note assumes dict are ordered, which they are in python3.9
-
-    # find layer names
-    for num in range(51):
-        print(num)
-        layer_table[num] = pcb.GetLayerName(num)
-        layer_table_rev[pcb.GetLayerName(num)] = num
-        # print("{} {}".format(i, pcb.GetLayerName(i)))
-    # Delete Old Tracks
-    print(f"deleting {len(list(pcb.GetTracks()))} tracks")
-    for track in pcb.GetTracks():
-        pcb.Delete(track)
-    print(f"deleting {len(list(pcb.GetDrawings()))} drawings")
-    for d in pcb.GetDrawings():
-        pcb.Remove(d)
-
-    # get and sort modules
-    modules = {mod.GetReference(): mod for mod in sorted(pcb.GetModules())}
-    modules_seconds = {k: modules[k] for k in ["D" + str(i) for i in range(1, 60 + 1)]}
-    modules_hours = {k: modules[k] for k in ["D" + str(i) for i in range(61, 72 + 1)]}
-    modules_digit = {k: modules[k] for k in ["U" + str(i) for i in range(1, 4 + 1)]}
-    modules_separation = {k: modules[k] for k in ["D" + str(i) for i in [73, 74]]}
-    modules_connector = {k: modules[k] for k in ["J" + str(i) for i in [1, 2]]}
-
-    # get and sort nets
-    nets = collections.defaultdict(list)
-    for mod in modules.values():
-        for pad in mod.Pads():
-            nets[pad.GetShortNetname()].append(pad)
-    nets_cathode = {k: v for k, v in nets.items() if k.startswith("k")}
-    nets_anode = {k: v for k, v in nets.items() if k.startswith("a")}
-
-    set_position_second_ring(modules_seconds, Radius)
-    set_position_hour_ring(modules_hours, Radius * 1.1)
-    set_position_digits(modules_digit, 3, 9.8)
-    set_separation_modules(modules_separation, 10)
-    set_connector_modules(modules_connector, 10)
-    set_dimension(100)
-    set_digits_connections(modules_digit, modules_separation)
-    set_cathode_tracks(nets_cathode)
-    set_anode_tracks(nets_anode)
 
     pcb.Save("autogen.kicad_pcb")
