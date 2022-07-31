@@ -760,4 +760,4 @@ if __name__ == "__main__":
                 layer_table_rev.get("B.Cu"),
             )
 
-    pcb.Save("autogen.kicad_pcb")
+    pcb.Save("StudioClock.kicad_pcb")

@@ -14,7 +14,7 @@ Comment3 ""
 Comment4 ""
 $EndDescr
 $Comp
-L StudioClock-rescue:LED D2
+L Device:LED D2
 U 1 1 589F64D2
 P 2750 1950
 F 0 "D2" H 2750 2050 50  0000 C CNN
@@ -25,7 +25,7 @@ F 3 "" H 2750 1950 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D3
+L Device:LED D3
 U 1 1 589F64D8
 P 2750 2250
 F 0 "D3" H 2750 2350 50  0000 C CNN
@@ -36,7 +36,7 @@ F 3 "" H 2750 2250 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D4
+L Device:LED D4
 U 1 1 589F64DE
 P 2750 2550
 F 0 "D4" H 2750 2650 50  0000 C CNN
@@ -47,7 +47,7 @@ F 3 "" H 2750 2550 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D16
+L Device:LED D16
 U 1 1 589F73F5
 P 3300 1650
 F 0 "D16" H 3300 1750 50  0000 C CNN
@@ -58,7 +58,7 @@ F 3 "" H 3300 1650 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D17
+L Device:LED D17
 U 1 1 589F73FB
 P 3300 1950
 F 0 "D17" H 3300 2050 50  0000 C CNN
@@ -69,7 +69,7 @@ F 3 "" H 3300 1950 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D18
+L Device:LED D18
 U 1 1 589F7401
 P 3300 2250
 F 0 "D18" H 3300 2350 50  0000 C CNN
@@ -80,7 +80,7 @@ F 3 "" H 3300 2250 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D19
+L Device:LED D19
 U 1 1 589F7407
 P 3300 2550
 F 0 "D19" H 3300 2650 50  0000 C CNN
@@ -91,7 +91,7 @@ F 3 "" H 3300 2550 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D31
+L Device:LED D31
 U 1 1 589F7AB9
 P 3850 1650
 F 0 "D31" H 3850 1750 50  0000 C CNN
@@ -102,7 +102,7 @@ F 3 "" H 3850 1650 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D32
+L Device:LED D32
 U 1 1 589F7ABF
 P 3850 1950
 F 0 "D32" H 3850 2050 50  0000 C CNN
@@ -113,7 +113,7 @@ F 3 "" H 3850 1950 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D33
+L Device:LED D33
 U 1 1 589F7AC5
 P 3850 2250
 F 0 "D33" H 3850 2350 50  0000 C CNN
@@ -124,7 +124,7 @@ F 3 "" H 3850 2250 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D34
+L Device:LED D34
 U 1 1 589F7ACB
 P 3850 2550
 F 0 "D34" H 3850 2650 50  0000 C CNN
@@ -135,7 +135,7 @@ F 3 "" H 3850 2550 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D46
+L Device:LED D46
 U 1 1 589F8516
 P 4400 1650
 F 0 "D46" H 4400 1750 50  0000 C CNN
@@ -146,7 +146,7 @@ F 3 "" H 4400 1650 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D47
+L Device:LED D47
 U 1 1 589F851C
 P 4400 1950
 F 0 "D47" H 4400 2050 50  0000 C CNN
@@ -157,7 +157,7 @@ F 3 "" H 4400 1950 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D48
+L Device:LED D48
 U 1 1 589F8522
 P 4400 2250
 F 0 "D48" H 4400 2350 50  0000 C CNN
@@ -168,7 +168,7 @@ F 3 "" H 4400 2250 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D49
+L Device:LED D49
 U 1 1 589F8528
 P 4400 2550
 F 0 "D49" H 4400 2650 50  0000 C CNN
@@ -179,7 +179,7 @@ F 3 "" H 4400 2550 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D50
+L Device:LED D50
 U 1 1 589F852E
 P 4400 2850
 F 0 "D50" H 4400 2950 50  0000 C CNN
@@ -190,7 +190,7 @@ F 3 "" H 4400 2850 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D35
+L Device:LED D35
 U 1 1 589F7AD1
 P 3850 2850
 F 0 "D35" H 3850 2950 50  0000 C CNN
@@ -201,7 +201,7 @@ F 3 "" H 3850 2850 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D20
+L Device:LED D20
 U 1 1 589F740D
 P 3300 2850
 F 0 "D20" H 3300 2950 50  0000 C CNN
@@ -212,7 +212,7 @@ F 3 "" H 3300 2850 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D5
+L Device:LED D5
 U 1 1 589F64E4
 P 2750 2850
 F 0 "D5" H 2750 2950 50  0000 C CNN
@@ -223,7 +223,7 @@ F 3 "" H 2750 2850 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D6
+L Device:LED D6
 U 1 1 589FDA55
 P 2750 3150
 F 0 "D6" H 2750 3250 50  0000 C CNN
@@ -234,7 +234,7 @@ F 3 "" H 2750 3150 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D7
+L Device:LED D7
 U 1 1 589FDA5B
 P 2750 3450
 F 0 "D7" H 2750 3550 50  0000 C CNN
@@ -245,7 +245,7 @@ F 3 "" H 2750 3450 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D8
+L Device:LED D8
 U 1 1 589FDA61
 P 2750 3750
 F 0 "D8" H 2750 3850 50  0000 C CNN
@@ -256,7 +256,7 @@ F 3 "" H 2750 3750 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D9
+L Device:LED D9
 U 1 1 589FDA67
 P 2750 4050
 F 0 "D9" H 2750 4150 50  0000 C CNN
@@ -267,7 +267,7 @@ F 3 "" H 2750 4050 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D21
+L Device:LED D21
 U 1 1 589FDA71
 P 3300 3150
 F 0 "D21" H 3300 3250 50  0000 C CNN
@@ -278,7 +278,7 @@ F 3 "" H 3300 3150 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D22
+L Device:LED D22
 U 1 1 589FDA77
 P 3300 3450
 F 0 "D22" H 3300 3550 50  0000 C CNN
@@ -289,7 +289,7 @@ F 3 "" H 3300 3450 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D23
+L Device:LED D23
 U 1 1 589FDA7D
 P 3300 3750
 F 0 "D23" H 3300 3850 50  0000 C CNN
@@ -300,7 +300,7 @@ F 3 "" H 3300 3750 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D24
+L Device:LED D24
 U 1 1 589FDA83
 P 3300 4050
 F 0 "D24" H 3300 4150 50  0000 C CNN
@@ -311,7 +311,7 @@ F 3 "" H 3300 4050 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D36
+L Device:LED D36
 U 1 1 589FDA8D
 P 3850 3150
 F 0 "D36" H 3850 3250 50  0000 C CNN
@@ -322,7 +322,7 @@ F 3 "" H 3850 3150 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D37
+L Device:LED D37
 U 1 1 589FDA93
 P 3850 3450
 F 0 "D37" H 3850 3550 50  0000 C CNN
@@ -333,7 +333,7 @@ F 3 "" H 3850 3450 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D38
+L Device:LED D38
 U 1 1 589FDA99
 P 3850 3750
 F 0 "D38" H 3850 3850 50  0000 C CNN
@@ -344,7 +344,7 @@ F 3 "" H 3850 3750 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D39
+L Device:LED D39
 U 1 1 589FDA9F
 P 3850 4050
 F 0 "D39" H 3850 4150 50  0000 C CNN
@@ -355,7 +355,7 @@ F 3 "" H 3850 4050 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D51
+L Device:LED D51
 U 1 1 589FDAA9
 P 4400 3150
 F 0 "D51" H 4400 3250 50  0000 C CNN
@@ -366,7 +366,7 @@ F 3 "" H 4400 3150 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D52
+L Device:LED D52
 U 1 1 589FDAAF
 P 4400 3450
 F 0 "D52" H 4400 3550 50  0000 C CNN
@@ -377,7 +377,7 @@ F 3 "" H 4400 3450 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D53
+L Device:LED D53
 U 1 1 589FDAB5
 P 4400 3750
 F 0 "D53" H 4400 3850 50  0000 C CNN
@@ -388,7 +388,7 @@ F 3 "" H 4400 3750 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D54
+L Device:LED D54
 U 1 1 589FDABB
 P 4400 4050
 F 0 "D54" H 4400 4150 50  0000 C CNN
@@ -399,7 +399,7 @@ F 3 "" H 4400 4050 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D55
+L Device:LED D55
 U 1 1 589FDAF0
 P 4400 4350
 F 0 "D55" H 4400 4450 50  0000 C CNN
@@ -410,7 +410,7 @@ F 3 "" H 4400 4350 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D40
+L Device:LED D40
 U 1 1 589FDAF6
 P 3850 4350
 F 0 "D40" H 3850 4450 50  0000 C CNN
@@ -421,7 +421,7 @@ F 3 "" H 3850 4350 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D25
+L Device:LED D25
 U 1 1 589FDAFC
 P 3300 4350
 F 0 "D25" H 3300 4450 50  0000 C CNN
@@ -432,7 +432,7 @@ F 3 "" H 3300 4350 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D10
+L Device:LED D10
 U 1 1 589FDB02
 P 2750 4350
 F 0 "D10" H 2750 4450 50  0000 C CNN
@@ -443,7 +443,7 @@ F 3 "" H 2750 4350 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D11
+L Device:LED D11
 U 1 1 589FE125
 P 2750 4650
 F 0 "D11" H 2750 4750 50  0000 C CNN
@@ -454,7 +454,7 @@ F 3 "" H 2750 4650 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D12
+L Device:LED D12
 U 1 1 589FE12B
 P 2750 4950
 F 0 "D12" H 2750 5050 50  0000 C CNN
@@ -465,7 +465,7 @@ F 3 "" H 2750 4950 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D13
+L Device:LED D13
 U 1 1 589FE131
 P 2750 5250
 F 0 "D13" H 2750 5350 50  0000 C CNN
@@ -476,7 +476,7 @@ F 3 "" H 2750 5250 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D14
+L Device:LED D14
 U 1 1 589FE137
 P 2750 5550
 F 0 "D14" H 2750 5650 50  0000 C CNN
@@ -487,7 +487,7 @@ F 3 "" H 2750 5550 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D26
+L Device:LED D26
 U 1 1 589FE141
 P 3300 4650
 F 0 "D26" H 3300 4750 50  0000 C CNN
@@ -498,7 +498,7 @@ F 3 "" H 3300 4650 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D27
+L Device:LED D27
 U 1 1 589FE147
 P 3300 4950
 F 0 "D27" H 3300 5050 50  0000 C CNN
@@ -509,7 +509,7 @@ F 3 "" H 3300 4950 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D28
+L Device:LED D28
 U 1 1 589FE14D
 P 3300 5250
 F 0 "D28" H 3300 5350 50  0000 C CNN
@@ -520,7 +520,7 @@ F 3 "" H 3300 5250 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D29
+L Device:LED D29
 U 1 1 589FE153
 P 3300 5550
 F 0 "D29" H 3300 5650 50  0000 C CNN
@@ -531,7 +531,7 @@ F 3 "" H 3300 5550 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D41
+L Device:LED D41
 U 1 1 589FE15D
 P 3850 4650
 F 0 "D41" H 3850 4750 50  0000 C CNN
@@ -542,7 +542,7 @@ F 3 "" H 3850 4650 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D42
+L Device:LED D42
 U 1 1 589FE163
 P 3850 4950
 F 0 "D42" H 3850 5050 50  0000 C CNN
@@ -553,7 +553,7 @@ F 3 "" H 3850 4950 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D43
+L Device:LED D43
 U 1 1 589FE169
 P 3850 5250
 F 0 "D43" H 3850 5350 50  0000 C CNN
@@ -564,7 +564,7 @@ F 3 "" H 3850 5250 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D44
+L Device:LED D44
 U 1 1 589FE16F
 P 3850 5550
 F 0 "D44" H 3850 5650 50  0000 C CNN
@@ -575,7 +575,7 @@ F 3 "" H 3850 5550 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D56
+L Device:LED D56
 U 1 1 589FE179
 P 4400 4650
 F 0 "D56" H 4400 4750 50  0000 C CNN
@@ -586,7 +586,7 @@ F 3 "" H 4400 4650 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D57
+L Device:LED D57
 U 1 1 589FE17F
 P 4400 4950
 F 0 "D57" H 4400 5050 50  0000 C CNN
@@ -597,7 +597,7 @@ F 3 "" H 4400 4950 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D58
+L Device:LED D58
 U 1 1 589FE185
 P 4400 5250
 F 0 "D58" H 4400 5350 50  0000 C CNN
@@ -608,7 +608,7 @@ F 3 "" H 4400 5250 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D59
+L Device:LED D59
 U 1 1 589FE18B
 P 4400 5550
 F 0 "D59" H 4400 5650 50  0000 C CNN
@@ -619,7 +619,7 @@ F 3 "" H 4400 5550 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D45
+L Device:LED D45
 U 1 1 589FE1C6
 P 3850 5850
 F 0 "D45" H 3850 5950 50  0000 C CNN
@@ -630,7 +630,7 @@ F 3 "" H 3850 5850 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D30
+L Device:LED D30
 U 1 1 589FE1CC
 P 3300 5850
 F 0 "D30" H 3300 5950 50  0000 C CNN
@@ -641,7 +641,7 @@ F 3 "" H 3300 5850 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D15
+L Device:LED D15
 U 1 1 589FE1D2
 P 2750 5850
 F 0 "D15" H 2750 5950 50  0000 C CNN
@@ -690,7 +690,7 @@ a2
 Text Label 3400 6350 1    60   ~ 0
 a3
 $Comp
-L StudioClock-rescue:LED D60
+L Device:LED D60
 U 1 1 58A026C4
 P 4400 5850
 F 0 "D60" H 4400 5950 50  0000 C CNN
@@ -701,7 +701,7 @@ F 3 "" H 4400 5850 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D63
+L Device:LED D63
 U 1 1 58A04EC9
 P 5000 4950
 F 0 "D63" H 5000 5050 50  0000 C CNN
@@ -712,7 +712,7 @@ F 3 "" H 5000 4950 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D65
+L Device:LED D65
 U 1 1 58A0507C
 P 5350 3750
 F 0 "D65" H 5350 3850 50  0000 C CNN
@@ -723,7 +723,7 @@ F 3 "" H 5350 3750 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D67
+L Device:LED D67
 U 1 1 58A0531C
 P 5700 2550
 F 0 "D67" H 5700 2650 50  0000 C CNN
@@ -734,7 +734,7 @@ F 3 "" H 5700 2550 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D68
+L Device:LED D68
 U 1 1 58A0541B
 P 5700 4050
 F 0 "D68" H 5700 4150 50  0000 C CNN
@@ -745,7 +745,7 @@ F 3 "" H 5700 4050 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D69
+L Device:LED D69
 U 1 1 58A054FD
 P 5750 5550
 F 0 "D69" H 5750 5650 50  0000 C CNN
@@ -756,7 +756,7 @@ F 3 "" H 5750 5550 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D70
+L Device:LED D70
 U 1 1 58A055E2
 P 6050 2850
 F 0 "D70" H 6050 2950 50  0000 C CNN
@@ -767,7 +767,7 @@ F 3 "" H 6050 2850 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D71
+L Device:LED D71
 U 1 1 58A05971
 P 6050 4350
 F 0 "D71" H 6050 4450 50  0000 C CNN
@@ -778,7 +778,7 @@ F 3 "" H 6050 4350 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D61
+L Device:LED D61
 U 1 1 58A05A5F
 P 5000 1950
 F 0 "D61" H 5000 2050 50  0000 C CNN
@@ -789,7 +789,7 @@ F 3 "" H 5000 1950 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D66
+L Device:LED D66
 U 1 1 58A05B50
 P 5350 5250
 F 0 "D66" H 5350 5350 50  0000 C CNN
@@ -802,7 +802,7 @@ $EndComp
 Text Label 3500 6350 1    60   ~ 0
 a4
 $Comp
-L StudioClock-rescue:LED D62
+L Device:LED D62
 U 1 1 58A04CA4
 P 5000 3450
 F 0 "D62" H 5000 3550 50  0000 C CNN
@@ -813,7 +813,7 @@ F 3 "" H 5000 3450 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D72
+L Device:LED D72
 U 1 1 58A0586A
 P 6100 5850
 F 0 "D72" H 6100 5950 50  0000 C CNN
@@ -824,7 +824,7 @@ F 3 "" H 6100 5850 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D1
+L Device:LED D1
 U 1 1 589F64CC
 P 2750 1650
 F 0 "D1" H 2750 1750 50  0000 C CNN
@@ -835,7 +835,7 @@ F 3 "" H 2750 1650 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D64
+L Device:LED D64
 U 1 1 58A04FA3
 P 5350 2250
 F 0 "D64" H 5350 2350 50  0000 C CNN
@@ -846,7 +846,7 @@ F 3 "" H 5350 2250 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D73
+L Device:LED D73
 U 1 1 58CD8140
 P 7350 1650
 F 0 "D73" H 7350 1750 50  0000 C CNN
@@ -857,7 +857,7 @@ F 3 "" H 7350 1650 50  0000 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L StudioClock-rescue:LED D74
+L Device:LED D74
 U 1 1 58CD8383
 P 7350 2000
 F 0 "D74" H 7350 2100 50  0000 C CNN
